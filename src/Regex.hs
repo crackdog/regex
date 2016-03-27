@@ -1,7 +1,13 @@
-module Regex where
+module Regex ( Regex(..),
+               readRegex,
+               parseRegex,
+               buildParser, test
+             ) where
 
 import Text.ParserCombinators.Parsec
+import Control.Monad ( void )
 import Control.Applicative ((<**>))
+import Data.Either ( isRight )
 
 data Regex = List [Regex]
            | Negate Regex
@@ -17,10 +23,6 @@ readRegex :: String -> String
 readRegex str = case parse parseFullRegex "regex" str of
                 Left err  -> "error: " ++ show err
                 Right val -> show val
-
---TODO remove after testing
-test :: String -> IO ()
-test = putStrLn . readRegex
 
 parseFullRegex :: Parser Regex
 parseFullRegex = parseRegex >>= \x -> eof >> return x
@@ -54,3 +56,16 @@ parseCharacter = Character <$> noneOf "^[.${*(\\+)|?<>"
 
 parseDot :: Parser Regex
 parseDot = char '.' >> return AnyCharacter
+
+test :: Regex -> String -> Bool
+test r = isRight . parse (buildParser r) "test"
+
+buildParser :: Regex -> Parser ()
+buildParser (List rs) = buildParser (head rs) --TODO implemenent backtracking
+buildParser (Negate r) = fail "not implemented"
+buildParser (Or rs) = void . choice $ map buildParser rs
+buildParser (Many r) = fail "not implemented"
+buildParser (Some r) = fail "not implemented"
+buildParser (ZeroOrOne r) = fail "not implemented"
+buildParser (Character r) = void $ char r
+buildParser AnyCharacter = void anyChar
