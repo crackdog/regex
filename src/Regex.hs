@@ -1,6 +1,8 @@
 module Regex ( Regex(..),
                readRegex,
                parseRegex,
+               completeText,
+               parseFullRegex,
                buildParser, test
              ) where
 
@@ -39,8 +41,8 @@ regexParsers = map (<**> parseFollowChar) [parseOr,
                                            parseDot,
                                            parseCharacter]
 
-parseList :: Parser Regex
-parseList = List <$> many parseRegex
+--parseList :: Parser Regex
+--parseList = List <$> many parseRegex
 
 parseOr :: Parser Regex
 parseOr = Or <$> between (char '(') (char ')') (sepBy1 parseRegex (char '|'))
@@ -58,14 +60,23 @@ parseDot :: Parser Regex
 parseDot = char '.' >> return AnyCharacter
 
 test :: Regex -> String -> Bool
-test r = isRight . parse (buildParser r) "test"
+test r = isRight . parse (parseUntilEOF $ buildParser r) "test"
+
+completeText :: String -> String -> Bool
+completeText rs cs = case parse parseFullRegex "regex" rs of
+                     Left _      -> False
+                     Right regex -> test regex cs
+
+parseUntilEOF :: Parser () -> Parser ()
+parseUntilEOF p = p >>= \x -> eof >> return x
 
 buildParser :: Regex -> Parser ()
-buildParser (List rs) = buildParser (head rs) --TODO implemenent backtracking
-buildParser (Negate r) = fail "not implemented"
+--buildParser (List rs) = buildParser (head rs) --TODO implemenent backtracking
+buildParser (List rs) = foldr ((>>) . buildParser) (return ()) rs
+buildParser (Negate _) = fail "not implemented"
 buildParser (Or rs) = void . choice $ map buildParser rs
-buildParser (Many r) = fail "not implemented"
-buildParser (Some r) = fail "not implemented"
-buildParser (ZeroOrOne r) = fail "not implemented"
+buildParser (Many r) = void . many $ buildParser r
+buildParser (Some r) = void . many1 $ buildParser r
+buildParser (ZeroOrOne r) = try (buildParser r) <|> return ()
 buildParser (Character r) = void $ char r
 buildParser AnyCharacter = void anyChar
