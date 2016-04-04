@@ -1,56 +1,54 @@
 module Regex ( Regex(..),
                readRegex,
                parseRegex,
-               completeText,
-               parseFullRegex,
-               buildParser, test
+               parseRegexes
              ) where
 
 import Text.ParserCombinators.Parsec
-import Control.Monad ( void )
 import Control.Applicative ((<**>))
-import Data.Either ( isRight )
 
 data Regex = List [Regex]
-           | Negate Regex
+           | Class String
+           | NegateClass String
            | Or [Regex]
-           | Many Regex      -- ^ 0 or more
-           | Some Regex      -- ^ 1 or more
-           | ZeroOrOne Regex
+           | Min Int Regex
+           | MinMax Int Int Regex
            | Character Char
            | AnyCharacter
            deriving Show
 
-readRegex :: String -> String
-readRegex str = case parse parseFullRegex "regex" str of
-                Left err  -> "error: " ++ show err
-                Right val -> show val
+readRegex :: String -> Either ParseError [Regex]
+readRegex = parse parseRegexes "readRegex"
 
-parseFullRegex :: Parser Regex
-parseFullRegex = parseRegex >>= \x -> eof >> return x
+parseRegexes :: Parser [Regex]
+parseRegexes = manyTill parseRegex eof --parseRegex >>= \x -> eof >> return x
 
 parseRegex :: Parser Regex
-parseRegex = f <$> many1 (choice regexParsers)
-  where
-    f :: [Regex] -> Regex
-    f [x] = x
-    f xs  = List xs
+parseRegex = choice regexParsers
 
 regexParsers :: [Parser Regex]
-regexParsers = map (<**> parseFollowChar) [parseOr,
+regexParsers = map (<**> parseQunatifier) [try parseList,
+                                           parseOr,
+                                           parseClass,
                                            parseDot,
                                            parseCharacter]
 
---parseList :: Parser Regex
---parseList = List <$> many parseRegex
+parseList :: Parser Regex
+parseList = List <$> between (char '(') (char ')') (many1 parseRegex)
+
+parseClass :: Parser Regex
+parseClass = char '[' >> (parseNegate <*> manyTill anyChar (char ']'))
+
+parseNegate :: Parser (String -> Regex)
+parseNegate = (char '^' >> return NegateClass) <|> return Class
 
 parseOr :: Parser Regex
 parseOr = Or <$> between (char '(') (char ')') (sepBy1 parseRegex (char '|'))
 
-parseFollowChar :: Parser (Regex -> Regex)
-parseFollowChar = (char '*' >> return Many)
-              <|> (char '+' >> return Some)
-              <|> (char '?' >> return ZeroOrOne)
+parseQunatifier :: Parser (Regex -> Regex)
+parseQunatifier = (char '*' >> return (Min 0))
+              <|> (char '+' >> return (Min 1))
+              <|> (char '?' >> return (MinMax 0 1))
               <|> return id
 
 parseCharacter :: Parser Regex
@@ -58,25 +56,3 @@ parseCharacter = Character <$> noneOf "^[.${*(\\+)|?<>"
 
 parseDot :: Parser Regex
 parseDot = char '.' >> return AnyCharacter
-
-test :: Regex -> String -> Bool
-test r = isRight . parse (parseUntilEOF $ buildParser r) "test"
-
-completeText :: String -> String -> Bool
-completeText rs cs = case parse parseFullRegex "regex" rs of
-                     Left _      -> False
-                     Right regex -> test regex cs
-
-parseUntilEOF :: Parser () -> Parser ()
-parseUntilEOF p = p >>= \x -> eof >> return x
-
-buildParser :: Regex -> Parser ()
---buildParser (List rs) = buildParser (head rs) --TODO implemenent backtracking
-buildParser (List rs) = foldr ((>>) . buildParser) (return ()) rs
-buildParser (Negate _) = fail "not implemented"
-buildParser (Or rs) = void . choice $ map buildParser rs
-buildParser (Many r) = void . many $ buildParser r
-buildParser (Some r) = void . many1 $ buildParser r
-buildParser (ZeroOrOne r) = try (buildParser r) <|> return ()
-buildParser (Character r) = void $ char r
-buildParser AnyCharacter = void anyChar
