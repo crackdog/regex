@@ -1,21 +1,20 @@
 module RegexParser where
 
 import Regex
---import Data.Either ( isRight )
 import Control.Monad ( void )
 import Text.ParserCombinators.Parsec
 
 regexes2Parser :: [Regex] -> Parser ()
 regexes2Parser []                  = return ()
-regexes2Parser (List rs : rss)     = mapM_ regex2Parser rs >> regexes2Parser rss
+regexes2Parser (List rs : rss)     = regexes2Parser rs >> regexes2Parser rss
 regexes2Parser (Negate _ : _)      = fail "not implemented"
 regexes2Parser (Or rs : rss)       =
     (void . choice $ map regex2Parser rs) >> regexes2Parser rss
 regexes2Parser (Many r : rs)       =
     try (regexes2Parser rs) <|> regexes2Parser (Some r : rs)
-regexes2Parser (Some r : rs)       = fail "not implemented"
---    do _ <- regex2Parser r
---       try (regexes2Parser rs) <|> regexes2Parser (Some r : rs)
+regexes2Parser (Some r : rs)       =
+    do _ <- regex2Parser r
+       try (regexes2Parser rs) <|> regexes2Parser (Some r : rs)
 regexes2Parser (ZeroOrOne r : rs)  =
     try (regex2Parser r >> regexes2Parser rs) <|> regexes2Parser rs
 regexes2Parser (Character r : rs)  = void (char r) >> regexes2Parser rs
