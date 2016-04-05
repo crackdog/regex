@@ -2,8 +2,8 @@
 -- datastructure.
 module Regex ( Regex(..),
                readRegex,
-               parseRegex,
-               parseRegexes
+               regexParser,
+               regexesParser
              ) where
 
 import Text.ParserCombinators.Parsec
@@ -22,15 +22,11 @@ data Regex = List [Regex]         -- ^ holds a list of regular expressions, that
 
 -- | readRegex s parses s to a list of Regex or fails with a ParseError
 readRegex :: String -> Either ParseError [Regex]
-readRegex = parse parseRegexes "readRegex"
-
--- | parseRegexes is a Parser for a list of Regex.
-parseRegexes :: Parser [Regex]
-parseRegexes = manyTill parseRegex eof --parseRegex >>= \x -> eof >> return x
+readRegex = parse regexesParser "readRegex"
 
 -- | parseRegex is a Parser for one Regex
-parseRegex :: Parser Regex
-parseRegex = choice regexParsers
+regexParser :: Parser Regex
+regexParser = choice regexParsers
 
 regexParsers :: [Parser Regex]
 regexParsers = map (<**> parseQuantifier) [try parseList,
@@ -39,8 +35,12 @@ regexParsers = map (<**> parseQuantifier) [try parseList,
                                            parseDot,
                                            parseCharacter]
 
+-- | parseRegexes is a Parser for a list of Regex until the end of input.
+regexesParser :: Parser [Regex]
+regexesParser = manyTill regexParser eof --parseRegex >>= \x -> eof >> return x
+
 parseList :: Parser Regex
-parseList = List <$> between (char '(') (char ')') (many1 parseRegex)
+parseList = List <$> between (char '(') (char ')') (many1 regexParser)
 
 parseClass :: Parser Regex
 parseClass = char '[' >> (parseNegate <*> manyTill anyChar (char ']'))
@@ -49,7 +49,7 @@ parseNegate :: Parser (String -> Regex)
 parseNegate = (char '^' >> return NegateClass) <|> return Class
 
 parseOr :: Parser Regex
-parseOr = Or <$> between (char '(') (char ')') (sepBy1 parseRegex (char '|'))
+parseOr = Or <$> between (char '(') (char ')') (sepBy1 regexParser (char '|'))
 
 parseQuantifier :: Parser (Regex -> Regex)
 parseQuantifier = (char '*' >> return (Min 0))
