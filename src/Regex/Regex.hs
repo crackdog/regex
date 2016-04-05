@@ -1,10 +1,10 @@
--- | Regex is a small module to parse a regular expression string into a haskell 
--- datastructure.
-module Regex ( Regex(..),
-               readRegex,
-               regexParser,
-               regexesParser
-             ) where
+-- | Regex.Regex is a small module to parse a subset of a regular expression into a 
+-- haskell datastructure.
+module Regex.Regex ( Regex(..),
+                     readRegex,
+                     regexParser,
+                     regexesParser
+                   ) where
 
 import Text.ParserCombinators.Parsec
 import Control.Applicative ((<**>))

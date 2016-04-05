@@ -1,11 +1,11 @@
--- | RegexParser contains Parsers for Regexes.
-module RegexParser ( regexes2Parser,
-                     checkRegexes,
-                     checkString,
-                     checkFullString
-                   ) where
+-- | Regex.RegexParser contains Parsers for Regexes.
+module Regex.RegexParser ( regexes2Parser,
+                           checkRegexes,
+                           checkString,
+                           checkFullString
+                         ) where
 
-import Regex
+import Regex.Regex
 import Control.Monad ( void )
 import Text.ParserCombinators.Parsec
 

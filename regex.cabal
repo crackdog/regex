@@ -16,7 +16,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     RegexParser, Regex
+  exposed-modules:     Regex.Regex, Regex.RegexParser
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.9, parsec
