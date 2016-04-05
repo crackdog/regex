@@ -27,7 +27,7 @@ parseRegex :: Parser Regex
 parseRegex = choice regexParsers
 
 regexParsers :: [Parser Regex]
-regexParsers = map (<**> parseQunatifier) [try parseList,
+regexParsers = map (<**> parseQuantifier) [try parseList,
                                            parseOr,
                                            parseClass,
                                            parseDot,
@@ -45,11 +45,25 @@ parseNegate = (char '^' >> return NegateClass) <|> return Class
 parseOr :: Parser Regex
 parseOr = Or <$> between (char '(') (char ')') (sepBy1 parseRegex (char '|'))
 
-parseQunatifier :: Parser (Regex -> Regex)
-parseQunatifier = (char '*' >> return (Min 0))
+parseQuantifier :: Parser (Regex -> Regex)
+parseQuantifier = (char '*' >> return (Min 0))
               <|> (char '+' >> return (Min 1))
               <|> (char '?' >> return (MinMax 0 1))
+              <|> parseExplicitQuantifier
               <|> return id
+
+parseExplicitQuantifier :: Parser (Regex -> Regex)
+parseExplicitQuantifier = do _ <- char '{'
+                             ics <- many1 digit
+                             let i = read ics :: Int
+                             c <- char '}' <|> char ','
+                             case c of
+                               '}' -> return $ Min i
+                               ',' -> do jcs <- many1 digit
+                                         let j = read jcs :: Int
+                                         _ <- char '}'
+                                         return $ MinMax i j
+                               _ -> fail "this should be } or ,"
 
 parseCharacter :: Parser Regex
 parseCharacter = Character <$> noneOf "^[.${*(\\+)|?<>"
