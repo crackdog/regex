@@ -1,3 +1,5 @@
+-- | Regex is a small module to parse a regular expression string into a haskell 
+-- datastructure.
 module Regex ( Regex(..),
                readRegex,
                parseRegex,
@@ -7,22 +9,26 @@ module Regex ( Regex(..),
 import Text.ParserCombinators.Parsec
 import Control.Applicative ((<**>))
 
-data Regex = List [Regex]
-           | Class String
-           | NegateClass String
-           | Or [Regex]
-           | Min Int Regex
-           | MinMax Int Int Regex
-           | Character Char
-           | AnyCharacter
+-- | Regex holds a single regular expression.
+data Regex = List [Regex]         -- ^ holds a list of regular expressions, that are evaluated in succession.
+           | Class String         -- ^ holds a character class
+           | NegateClass String   -- ^ holds an inverted character class
+           | Or [Regex]           -- ^ performs an or operation on a list of regular expressions.
+           | Min Int Regex        -- ^ Min i r evaluates r at least i times.
+           | MinMax Int Int Regex -- ^ MinMax i j r evaluates r at least i and at most j times.
+           | Character Char       -- ^ holds a single character
+           | AnyCharacter         -- ^ AnyCharacter parses any input character
            deriving Show
 
+-- | readRegex s parses s to a list of Regex or fails with a ParseError
 readRegex :: String -> Either ParseError [Regex]
 readRegex = parse parseRegexes "readRegex"
 
+-- | parseRegexes is a Parser for a list of Regex.
 parseRegexes :: Parser [Regex]
 parseRegexes = manyTill parseRegex eof --parseRegex >>= \x -> eof >> return x
 
+-- | parseRegex is a Parser for one Regex
 parseRegex :: Parser Regex
 parseRegex = choice regexParsers
 
